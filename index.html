@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Edgemoss — photoreal 3D for your product pages</title>
+<meta name="description" content="We turn your real products into photoreal, interactive 3D models shoppers can spin on your product page. Free first model." />
+<!--
+  EDIT before deploying: search for CONFIG in the script (brand, email, calendly, splatUrl).
+  The hero always shows an animated 3D placeholder. When this page is SERVED over http(s)
+  (deploy, or `npx serve .`), it upgrades to a real gaussian splat from CONFIG.splatUrl.
+  Swap splatUrl for your own captured .spz/.sog once you have one.
+-->
+<style>
+  :root{--bg:#070809;--panel:#0e1116;--line:rgba(255,255,255,.09);--txt:#eef1f4;--muted:#99a2ad;
+    --accent:#5eead4;--accent2:#7c9bff;--glow:rgba(94,234,212,.3);--radius:16px;--maxw:1140px;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--txt);line-height:1.55;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  .eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:14px}
+  h1,h2,h3{line-height:1.1;letter-spacing:-.02em;font-weight:750}
+  h2{font-size:clamp(26px,3.6vw,40px);margin-bottom:16px}
+  .lead{color:var(--muted);font-size:clamp(15px,1.5vw,18px);max-width:600px}
+  .btn{display:inline-flex;align-items:center;gap:9px;background:var(--accent);color:#04201b;font-weight:650;padding:14px 24px;border-radius:999px;border:0;cursor:pointer;font-size:15px;box-shadow:0 8px 30px var(--glow);transition:transform .15s,box-shadow .15s}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 14px 40px var(--glow)}
+  .btn.ghost{background:transparent;color:var(--txt);border:1px solid var(--line);box-shadow:none}
+  .btn.ghost:hover{border-color:var(--accent)}
+  nav{position:sticky;top:0;z-index:30;backdrop-filter:blur(14px);background:rgba(7,8,9,.6);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:750;letter-spacing:.05em}
+  .logo .dot{width:11px;height:11px;border-radius:50%;background:radial-gradient(circle at 30% 30%,var(--accent),var(--accent2));box-shadow:0 0 14px var(--glow)}
+  .hero{padding:56px 0 40px}
+  .hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:44px;align-items:center}
+  @media(max-width:880px){.hero-grid{grid-template-columns:1fr;gap:28px}}
+  .hero h1{font-size:clamp(32px,5vw,56px);max-width:15ch;margin-bottom:18px}
+  .hero h1 .g{background:linear-gradient(120deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{max-width:520px;margin-bottom:26px;color:#c4ccd6;font-size:clamp(15px,1.6vw,19px)}
+  .cta-row{display:flex;gap:12px;flex-wrap:wrap}
+  .viewer-card{position:relative;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;aspect-ratio:1/1;background:radial-gradient(120% 100% at 50% 20%,#12161b,#0a0c0f);box-shadow:0 30px 80px rgba(0,0,0,.5);cursor:grab}
+  .viewer-card:active{cursor:grabbing}
+  #demo,#fallback{position:absolute;inset:0;width:100%;height:100%}
+  #demo{opacity:0;transition:opacity .5s ease}
+  .viewer-card.spark #demo{opacity:1}
+  .viewer-card.spark #fallback{opacity:0}
+  #fallback{transition:opacity .5s ease}
+  .vtag{position:absolute;top:12px;left:12px;z-index:3;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);background:rgba(13,15,18,.7);border:1px solid var(--line);padding:7px 12px;border-radius:999px;backdrop-filter:blur(8px)}
+  .vtag .pulse{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pl 2s infinite}
+  @keyframes pl{0%{box-shadow:0 0 0 0 var(--glow)}70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}
+  .vhint{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:2;font-size:12px;color:var(--muted);background:rgba(13,15,18,.6);padding:6px 12px;border-radius:999px;transition:opacity .4s ease}
+  section{padding:56px 0;border-top:1px solid var(--line)}
+  .trust{padding:22px 0;border-top:1px solid var(--line);background:var(--panel)}
+  .trust .wrap{display:flex;flex-wrap:wrap;gap:14px 40px;justify-content:center;color:var(--muted);font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+  .trust b{color:var(--txt)}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:820px){.grid3{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:26px;transition:border-color .2s,transform .2s}
+  .card:hover{border-color:rgba(94,234,212,.4);transform:translateY(-3px)}
+  .card .ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;background:linear-gradient(135deg,rgba(94,234,212,.18),rgba(124,155,255,.18));border:1px solid var(--line);font-size:19px}
+  .card h3{font-size:18px;margin-bottom:7px}.card p{color:var(--muted);font-size:14.5px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;text-align:center}
+  @media(max-width:820px){.stats{grid-template-columns:1fr}}
+  .stat .n{font-size:clamp(32px,5vw,48px);font-weight:750;background:linear-gradient(120deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .stat .l{color:var(--muted);font-size:14px;margin-top:4px}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:820px){.steps{grid-template-columns:1fr}}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:24px}
+  .step .n{font-size:13px;color:var(--accent);font-weight:700;letter-spacing:.12em}
+  .step h3{font-size:17px;margin:8px 0 6px}.step p{color:var(--muted);font-size:14px}
+  .cta-band{text-align:center;background:radial-gradient(80% 140% at 50% 0%,rgba(94,234,212,.15),transparent 60%),var(--panel)}
+  .cta-band h2{margin-bottom:12px}.cta-band .lead{margin:0 auto 26px}
+  .note{font-size:12px;color:var(--muted);margin-top:14px}
+  footer{padding:40px 0;color:var(--muted);font-size:13px;text-align:center;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <div class="logo"><span class="dot"></span><span id="brand-nav">Edgemoss</span></div>
+  <a class="btn" style="padding:10px 18px;font-size:14px" id="cta-nav">Get a free 3D model</a>
+</div></nav>
+
+<header class="hero"><div class="wrap"><div class="hero-grid">
+  <div>
+    <div class="eyebrow">3D for product pages</div>
+    <h1>Let shoppers <span class="g">spin your product</span>, not just stare at a photo.</h1>
+    <p>We turn your real product into a photoreal, interactive 3D model — the actual item, with its true texture and finish — and put it on your product page. You don't need a 3D artist. The first one's on us.</p>
+    <div class="cta-row">
+      <a class="btn" id="cta-hero">Get a free 3D model →</a>
+      <a class="btn ghost" href="#how">How it works</a>
+    </div>
+    <p class="note">Drag the model → that's exactly what your shoppers will do.</p>
+  </div>
+  <div class="viewer-card" id="vcard">
+    <canvas id="fallback"></canvas>
+    <canvas id="demo"></canvas>
+    <div class="vtag"><span class="pulse"></span> Live 3D — drag to spin</div>
+    <div class="vhint" id="vhint">↻ drag · scroll to zoom</div>
+  </div>
+</div></div></header>
+
+<div class="trust"><div class="wrap">
+  <span>Built for <b>furniture &amp; décor</b></span>
+  <span><b>Flat pricing</b> — no per-order fees</span>
+  <span>Loads on <b>any phone</b></span>
+  <span>Installs with <b>no code</b></span>
+</div></div>
+
+<section><div class="wrap">
+  <div class="eyebrow">Why it works</div>
+  <h2>The realism photos can't show.</h2>
+  <p class="lead" style="margin-bottom:34px">Flat photos can't convey scale, material, or detail — so texture-rich products lose sales and take returns. A real 3D scan lets shoppers judge the piece before they buy.</p>
+  <div class="grid3">
+    <div class="card"><div class="ic">🪵</div><h3>Your real product</h3><p>We scan the actual item, so the weave, grain, and finish read true — not a plastic-looking computer model.</p></div>
+    <div class="card"><div class="ic">⚡</div><h3>Fast on mobile</h3><p>Compressed and lazy-loaded — it spins smoothly on a phone and never slows your page.</p></div>
+    <div class="card"><div class="ic">🛠️</div><h3>Done for you</h3><p>Send us the product (or footage). We deliver the model and a one-line embed. No 3D artist needed.</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow" style="text-align:center">The case for 3D</div>
+  <h2 style="text-align:center;margin-bottom:34px">Interactive products sell better.</h2>
+  <div class="stats">
+    <div class="stat"><div class="n">+94%</div><div class="l">higher conversion vs. photo-only*</div></div>
+    <div class="stat"><div class="n">−40%</div><div class="l">fewer returns*</div></div>
+    <div class="stat"><div class="n">~2×</div><div class="l">longer time on page*</div></div>
+  </div>
+  <p class="note" style="text-align:center">*Industry figures from 3D/AR commerce studies. We measure the lift on your own product, free, so you see real numbers.</p>
+</div></section>
+
+<section id="how"><div class="wrap">
+  <div class="eyebrow">How it works</div>
+  <h2>From product to live 3D in about a week.</h2>
+  <div class="steps" style="margin-top:30px">
+    <div class="step"><div class="n">01</div><h3>Send us your hero product</h3><p>Ship it, or send footage. That's the only thing we need from you.</p></div>
+    <div class="step"><div class="n">02</div><h3>We build the 3D model</h3><p>We scan and process it into a photoreal, web-ready interactive model.</p></div>
+    <div class="step"><div class="n">03</div><h3>It goes live on your page</h3><p>We hand you a one-line embed (or install it with you). Then we look at the numbers together.</p></div>
+  </div>
+</div></section>
+
+<section class="cta-band" id="contact"><div class="wrap">
+  <div class="eyebrow" style="text-align:center">No catch</div>
+  <h2>Get your best-seller in 3D — free.</h2>
+  <p class="lead">Pick your top product. We'll make an interactive 3D version and put it live, free. If it lifts your numbers and you want more, we talk. If not, no harm done.</p>
+  <a class="btn" id="cta-foot">Claim my free 3D model →</a>
+</div></section>
+
+<footer><div class="wrap">
+  <div class="logo" style="justify-content:center;margin-bottom:8px"><span class="dot"></span><span id="brand-foot">Edgemoss</span></div>
+  Photoreal 3D for e-commerce · <span id="email-foot">hello@edgemoss.com</span>
+</div></footer>
+
+<!-- ===== CONFIG + CTA wiring (plain script, runs everywhere) ===== -->
+<script>
+  window.SPLAT_CONFIG = {
+    brand: "Edgemoss",
+    email: "hello@edgemoss.com",   // your real inbox
+    calendly: "",                     // optional booking link
+    splatUrl: "https://sparkjs.dev/assets/splats/butterfly.spz", // swap for your own capture
+  };
+  (function(){
+    var C = window.SPLAT_CONFIG;
+    var mailto = "mailto:" + C.email + "?subject=" + encodeURIComponent("Free 3D model for my store") +
+      "&body=" + encodeURIComponent("Hi - I'd like a free 3D model of my best-selling product.\n\nStore URL:\nProduct:\n");
+    var href = C.calendly || mailto;
+    ["cta-nav","cta-hero","cta-foot"].forEach(function(id){var e=document.getElementById(id);if(e)e.href=href;});
+    document.getElementById("brand-nav").textContent=C.brand;
+    document.getElementById("brand-foot").textContent=C.brand;
+    document.getElementById("email-foot").textContent=C.email;
+  })();
+</script>
+
+<!-- ===== Dependency-free 3D placeholder (always visible) ===== -->
+<script>
+(function(){
+  var cv=document.getElementById("fallback"), card=document.getElementById("vcard");
+  var ctx=cv.getContext("2d"), DPR=Math.min(window.devicePixelRatio||1,2);
+  function size(){ cv.width=card.clientWidth*DPR; cv.height=card.clientHeight*DPR; }
+  size(); window.addEventListener("resize",size);
+  // build a lounge-chair-ish point cloud
+  var P=[]; function rnd(s){return (Math.random()-0.5)*s;}
+  function add(x,y,z,col){P.push({x:x,y:y,z:z,c:col});}
+  var fab="rgba(214,150,80,", woodc="rgba(120,78,48,";
+  for(var i=0;i<2600;i++){var x=rnd(2.4),z=rnd(2.2); if(Math.abs(x)>1.15||Math.abs(z)>1.0)continue; add(x,0.15+rnd(.18),z,fab);} // seat
+  for(i=0;i<3000;i++){var u=Math.random(); var bx=rnd(2.4); if(Math.abs(bx)>1.2)continue; add(bx,0.3+u*1.7,-0.95-u*0.5+rnd(.12),fab);} // back
+  var legs=[[-0.95,0.8],[0.95,0.8],[-0.9,-0.8],[0.9,-0.8]];
+  legs.forEach(function(L){for(i=0;i<700;i++){var t=Math.random();add(L[0]+L[0]*0.12*t,-0.1-t*1.15,L[1]+L[1]*0.12*t,woodc);}});
+  var ang=0, tang=0.6, phi=0.5, dragging=false, lx=0, auto=true, zoom=1;
+  card.addEventListener("pointerdown",function(e){dragging=true;auto=false;lx=e.clientX;var hint=document.getElementById("vhint");if(hint)hint.style.opacity="0";});
+  window.addEventListener("pointermove",function(e){if(!dragging)return;tang+=(e.clientX-lx)*0.01;lx=e.clientX;});
+  window.addEventListener("pointerup",function(){dragging=false;});
+  card.addEventListener("wheel",function(e){zoom=Math.max(0.6,Math.min(1.8,zoom-e.deltaY*0.001));e.preventDefault();},{passive:false});
+  function frame(){
+    requestAnimationFrame(frame);
+    if(card.classList.contains("spark")) return; // real splat took over
+    if(auto)tang+=0.004; ang+=(tang-ang)*0.1;
+    var W=cv.width,H=cv.height,cx=W/2,cy=H/2, f=3.2, sc=Math.min(W,H)*0.32*zoom;
+    ctx.clearRect(0,0,W,H);
+    var ca=Math.cos(ang),sa=Math.sin(ang), cp=Math.cos(phi),sp=Math.sin(phi);
+    var pts=[];
+    for(var i=0;i<P.length;i++){var p=P[i];
+      var xr=p.x*ca - p.z*sa, zr=p.x*sa + p.z*ca;
+      var yr=p.y*cp - zr*sp, zr2=p.y*sp + zr*cp;
+      var s=f/(f+zr2); pts.push({sx:cx+xr*sc*s, sy:cy-yr*sc*s, d:zr2, c:p.c, s:s});
+    }
+    pts.sort(function(a,b){return b.d-a.d;});
+    for(i=0;i<pts.length;i++){var q=pts[i]; var al=Math.max(.15,Math.min(.95,0.6+q.d*0.25));
+      ctx.fillStyle=q.c+al+")"; var r=Math.max(1,1.7*q.s*DPR); ctx.fillRect(q.sx,q.sy,r,r);}
+  }
+  frame();
+})();
+</script>
+
+<!-- ===== Real gaussian splat (only when served over http/https) ===== -->
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+  "@sparkjsdev/spark": "https://sparkjs.dev/releases/spark/2.1.0/spark.module.js"
+} }
+</script>
+<script type="module">
+  try {
+    const THREE = await import("three");
+    const { OrbitControls } = await import("three/addons/controls/OrbitControls.js");
+    const { SparkRenderer, SplatMesh } = await import("@sparkjsdev/spark");
+    const card = document.getElementById("vcard");
+    const el = document.getElementById("demo");
+    const w = el.clientWidth, h = el.clientHeight;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(55, w/h, 0.01, 1000); camera.position.set(0,0,3.2);
+    const r = new THREE.WebGLRenderer({ antialias:false, alpha:true });
+    r.setPixelRatio(Math.min(devicePixelRatio,2)); r.setSize(w,h); el.appendChild(r.domElement);
+    scene.add(new SparkRenderer({ renderer:r }));
+    const c = new OrbitControls(camera, r.domElement);
+    c.enableDamping=true; c.dampingFactor=0.08; c.enablePan=false; c.autoRotate=true; c.autoRotateSpeed=0.7;
+    c.addEventListener("start", () => { c.autoRotate=false; });
+    const m = new SplatMesh({ url: window.SPLAT_CONFIG.splatUrl, onLoad: () => {
+      m.quaternion.set(1,0,0,0);
+      card.classList.add("spark");
+      try { const b=new THREE.Box3().setFromObject(m); if(!b.isEmpty()){ const t=b.getCenter(new THREE.Vector3()), s=b.getSize(new THREE.Vector3()).length()||3; c.target.copy(t); camera.position.copy(t).add(new THREE.Vector3(0,0,s*0.9)); camera.near=s/100; camera.far=s*10; camera.updateProjectionMatrix(); c.update(); } } catch(e){}
+    }});
+    scene.add(m);
+    addEventListener("resize", () => { const W=el.clientWidth,H=el.clientHeight; r.setSize(W,H); camera.aspect=W/H; camera.updateProjectionMatrix(); });
+    r.setAnimationLoop(() => { c.update(); r.render(scene,camera); });
+  } catch (e) {
+    console.warn("Splat renderer unavailable (page may be opened as a local file). Showing placeholder.", e);
+  }
+</script>
+</body>
+</html>
