@@ -201,6 +201,7 @@
   controls.addEventListener("start", () => { controls.autoRotate = false; const hint=document.getElementById("vhint"); if(hint) hint.style.opacity="0"; });
 
   new PLYLoader().load(cfg.modelUrl, (geometry) => {
+    geometry.rotateX(-Math.PI / 2); // capture Z-up -> world Y-up (upright)
     geometry.computeBoundingSphere();
     const bs = geometry.boundingSphere;
     const r = bs.radius || 1;
@@ -214,7 +215,7 @@
     scene.add(pts);
     // frame the model
     controls.target.copy(bs.center);
-    camera.position.set(bs.center.x + r * 1.4, bs.center.y + r * 0.6, bs.center.z + r * 2.0);
+    camera.position.set(bs.center.x + r * 1.3, bs.center.y + r * 0.45, bs.center.z + r * 1.9);
     camera.near = r / 100; camera.far = r * 50; camera.updateProjectionMatrix();
     controls.minDistance = r * 0.4;
     controls.maxDistance = r * 8;
