@@ -5,12 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Edgemoss — photoreal 3D for your product pages</title>
 <meta name="description" content="We turn your real products into photoreal, interactive 3D models shoppers can spin on your product page. Free first model." />
-<!--
-  EDIT before deploying: search for CONFIG in the script (brand, email, calendly, splatUrl).
-  The hero always shows an animated 3D placeholder. When this page is SERVED over http(s)
-  (deploy, or `npx serve .`), it upgrades to a real gaussian splat from CONFIG.splatUrl.
-  Swap splatUrl for your own captured .spz/.sog once you have one.
--->
+<!-- EDIT before deploying: search for SPLAT_CONFIG (brand, email, calendly, modelUrl). -->
 <style>
   :root{--bg:#070809;--panel:#0e1116;--line:rgba(255,255,255,.09);--txt:#eef1f4;--muted:#99a2ad;
     --accent:#5eead4;--accent2:#7c9bff;--glow:rgba(94,234,212,.3);--radius:16px;--maxw:1140px;}
@@ -38,16 +33,15 @@
   .hero h1 .g{background:linear-gradient(120deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
   .hero p{max-width:520px;margin-bottom:26px;color:#c4ccd6;font-size:clamp(15px,1.6vw,19px)}
   .cta-row{display:flex;gap:12px;flex-wrap:wrap}
-  .viewer-card{position:relative;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;aspect-ratio:1/1;background:radial-gradient(120% 100% at 50% 20%,#12161b,#0a0c0f);box-shadow:0 30px 80px rgba(0,0,0,.5);cursor:grab}
+  .viewer-card{position:relative;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;aspect-ratio:1/1;background:radial-gradient(120% 100% at 50% 20%,#12161b,#0a0c0f);box-shadow:0 30px 80px rgba(0,0,0,.5);cursor:grab;touch-action:none}
   .viewer-card:active{cursor:grabbing}
-  #demo,#fallback{position:absolute;inset:0;width:100%;height:100%}
-  #demo{opacity:0;transition:opacity .5s ease}
-  .viewer-card.spark #demo{opacity:1}
-  .viewer-card.spark #fallback{opacity:0}
-  #fallback{transition:opacity .5s ease}
+  #view{position:absolute;inset:0;width:100%;height:100%}
   .vtag{position:absolute;top:12px;left:12px;z-index:3;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);background:rgba(13,15,18,.7);border:1px solid var(--line);padding:7px 12px;border-radius:999px;backdrop-filter:blur(8px)}
   .vtag .pulse{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pl 2s infinite}
   @keyframes pl{0%{box-shadow:0 0 0 0 var(--glow)}70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}
+  .vload{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--muted);font-size:14px;z-index:2}
+  .vspin{width:30px;height:30px;border:3px solid rgba(255,255,255,.12);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
   .vhint{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:2;font-size:12px;color:var(--muted);background:rgba(13,15,18,.6);padding:6px 12px;border-radius:999px;transition:opacity .4s ease}
   section{padding:56px 0;border-top:1px solid var(--line)}
   .trust{padding:22px 0;border-top:1px solid var(--line);background:var(--panel)}
@@ -93,10 +87,10 @@
     <p class="note">Drag the model → that's exactly what your shoppers will do.</p>
   </div>
   <div class="viewer-card" id="vcard">
-    <canvas id="fallback"></canvas>
-    <canvas id="demo"></canvas>
-    <div class="vtag"><span class="pulse"></span> Live 3D — drag to spin</div>
-    <div class="vhint" id="vhint">↻ drag · scroll to zoom</div>
+    <canvas id="view"></canvas>
+    <div class="vtag"><span class="pulse"></span> Live 3D — drag to rotate</div>
+    <div class="vload" id="vload"><div class="vspin"></div> Loading 3D…</div>
+    <div class="vhint" id="vhint">↻ drag any direction · scroll to zoom</div>
   </div>
 </div></div></header>
 
@@ -151,13 +145,13 @@
   Photoreal 3D for e-commerce · <span id="email-foot">hello@edgemoss.com</span>
 </div></footer>
 
-<!-- ===== CONFIG + CTA wiring (plain script, runs everywhere) ===== -->
 <script>
   window.SPLAT_CONFIG = {
     brand: "Edgemoss",
-    email: "hello@edgemoss.com",   // your real inbox
-    calendly: "",                     // optional booking link
-    splatUrl: "https://sparkjs.dev/assets/splats/butterfly.spz", // swap for your own capture
+    email: "hello@edgemoss.com",      // your real inbox
+    calendly: "",                      // optional booking link
+    modelUrl: "./motorcycle.ply",      // colored point-cloud capture
+    pointScale: 0.0035                  // point size as a fraction of model radius
   };
   (function(){
     var C = window.SPLAT_CONFIG;
@@ -171,82 +165,68 @@
   })();
 </script>
 
-<!-- ===== Dependency-free 3D placeholder (always visible) ===== -->
-<script>
-(function(){
-  var cv=document.getElementById("fallback"), card=document.getElementById("vcard");
-  var ctx=cv.getContext("2d"), DPR=Math.min(window.devicePixelRatio||1,2);
-  function size(){ cv.width=card.clientWidth*DPR; cv.height=card.clientHeight*DPR; }
-  size(); window.addEventListener("resize",size);
-  // build a lounge-chair-ish point cloud
-  var P=[]; function rnd(s){return (Math.random()-0.5)*s;}
-  function add(x,y,z,col){P.push({x:x,y:y,z:z,c:col});}
-  var fab="rgba(214,150,80,", woodc="rgba(120,78,48,";
-  for(var i=0;i<2600;i++){var x=rnd(2.4),z=rnd(2.2); if(Math.abs(x)>1.15||Math.abs(z)>1.0)continue; add(x,0.15+rnd(.18),z,fab);} // seat
-  for(i=0;i<3000;i++){var u=Math.random(); var bx=rnd(2.4); if(Math.abs(bx)>1.2)continue; add(bx,0.3+u*1.7,-0.95-u*0.5+rnd(.12),fab);} // back
-  var legs=[[-0.95,0.8],[0.95,0.8],[-0.9,-0.8],[0.9,-0.8]];
-  legs.forEach(function(L){for(i=0;i<700;i++){var t=Math.random();add(L[0]+L[0]*0.12*t,-0.1-t*1.15,L[1]+L[1]*0.12*t,woodc);}});
-  var ang=0, tang=0.6, phi=0.5, dragging=false, lx=0, auto=true, zoom=1;
-  card.addEventListener("pointerdown",function(e){dragging=true;auto=false;lx=e.clientX;var hint=document.getElementById("vhint");if(hint)hint.style.opacity="0";});
-  window.addEventListener("pointermove",function(e){if(!dragging)return;tang+=(e.clientX-lx)*0.01;lx=e.clientX;});
-  window.addEventListener("pointerup",function(){dragging=false;});
-  card.addEventListener("wheel",function(e){zoom=Math.max(0.6,Math.min(1.8,zoom-e.deltaY*0.001));e.preventDefault();},{passive:false});
-  function frame(){
-    requestAnimationFrame(frame);
-    if(card.classList.contains("spark")) return; // real splat took over
-    if(auto)tang+=0.004; ang+=(tang-ang)*0.1;
-    var W=cv.width,H=cv.height,cx=W/2,cy=H/2, f=3.2, sc=Math.min(W,H)*0.32*zoom;
-    ctx.clearRect(0,0,W,H);
-    var ca=Math.cos(ang),sa=Math.sin(ang), cp=Math.cos(phi),sp=Math.sin(phi);
-    var pts=[];
-    for(var i=0;i<P.length;i++){var p=P[i];
-      var xr=p.x*ca - p.z*sa, zr=p.x*sa + p.z*ca;
-      var yr=p.y*cp - zr*sp, zr2=p.y*sp + zr*cp;
-      var s=f/(f+zr2); pts.push({sx:cx+xr*sc*s, sy:cy-yr*sc*s, d:zr2, c:p.c, s:s});
-    }
-    pts.sort(function(a,b){return b.d-a.d;});
-    for(i=0;i<pts.length;i++){var q=pts[i]; var al=Math.max(.15,Math.min(.95,0.6+q.d*0.25));
-      ctx.fillStyle=q.c+al+")"; var r=Math.max(1,1.7*q.s*DPR); ctx.fillRect(q.sx,q.sy,r,r);}
-  }
-  frame();
-})();
-</script>
-
-<!-- ===== Real gaussian splat (only when served over http/https) ===== -->
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-  "@sparkjsdev/spark": "https://sparkjs.dev/releases/spark/2.1.0/spark.module.js"
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
 } }
 </script>
 <script type="module">
-  try {
-    const THREE = await import("three");
-    const { OrbitControls } = await import("three/addons/controls/OrbitControls.js");
-    const { SparkRenderer, SplatMesh } = await import("@sparkjsdev/spark");
-    const card = document.getElementById("vcard");
-    const el = document.getElementById("demo");
-    const w = el.clientWidth, h = el.clientHeight;
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(55, w/h, 0.01, 1000); camera.position.set(0,0,3.2);
-    const r = new THREE.WebGLRenderer({ antialias:false, alpha:true });
-    r.setPixelRatio(Math.min(devicePixelRatio,2)); r.setSize(w,h); el.appendChild(r.domElement);
-    scene.add(new SparkRenderer({ renderer:r }));
-    const c = new OrbitControls(camera, r.domElement);
-    c.enableDamping=true; c.dampingFactor=0.08; c.enablePan=false; c.autoRotate=true; c.autoRotateSpeed=0.7;
-    c.addEventListener("start", () => { c.autoRotate=false; });
-    const m = new SplatMesh({ url: window.SPLAT_CONFIG.splatUrl, onLoad: () => {
-      m.quaternion.set(1,0,0,0);
-      card.classList.add("spark");
-      try { const b=new THREE.Box3().setFromObject(m); if(!b.isEmpty()){ const t=b.getCenter(new THREE.Vector3()), s=b.getSize(new THREE.Vector3()).length()||3; c.target.copy(t); camera.position.copy(t).add(new THREE.Vector3(0,0,s*0.9)); camera.near=s/100; camera.far=s*10; camera.updateProjectionMatrix(); c.update(); } } catch(e){}
-    }});
-    scene.add(m);
-    addEventListener("resize", () => { const W=el.clientWidth,H=el.clientHeight; r.setSize(W,H); camera.aspect=W/H; camera.updateProjectionMatrix(); });
-    r.setAnimationLoop(() => { c.update(); r.render(scene,camera); });
-  } catch (e) {
-    console.warn("Splat renderer unavailable (page may be opened as a local file). Showing placeholder.", e);
-  }
+  import * as THREE from "three";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+  import { PLYLoader } from "three/addons/loaders/PLYLoader.js";
+
+  const card = document.getElementById("vcard");
+  const canvas = document.getElementById("view");
+  const cfg = window.SPLAT_CONFIG || {};
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  function size(){ return [card.clientWidth || 1, card.clientHeight || 1]; }
+  let [w,h] = size();
+  renderer.setSize(w, h, false);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(50, w/h, 0.001, 5000);
+  camera.position.set(0, 0, 3);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.enablePan = false;
+  controls.rotateSpeed = 0.9;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.8;
+  // full rotation: no polar-angle limits (default 0..PI = drag any direction)
+  controls.addEventListener("start", () => { controls.autoRotate = false; const hint=document.getElementById("vhint"); if(hint) hint.style.opacity="0"; });
+
+  new PLYLoader().load(cfg.modelUrl, (geometry) => {
+    geometry.computeBoundingSphere();
+    const bs = geometry.boundingSphere;
+    const r = bs.radius || 1;
+    const mat = new THREE.PointsMaterial({
+      size: Math.max(0.0008, r * (cfg.pointScale || 0.0035)),
+      vertexColors: geometry.hasAttribute("color"),
+      color: geometry.hasAttribute("color") ? 0xffffff : 0xcfd6df,
+      sizeAttenuation: true
+    });
+    const pts = new THREE.Points(geometry, mat);
+    scene.add(pts);
+    // frame the model
+    controls.target.copy(bs.center);
+    camera.position.set(bs.center.x + r * 1.4, bs.center.y + r * 0.6, bs.center.z + r * 2.0);
+    camera.near = r / 100; camera.far = r * 50; camera.updateProjectionMatrix();
+    controls.minDistance = r * 0.4;
+    controls.maxDistance = r * 8;
+    controls.update();
+    const ld = document.getElementById("vload"); if (ld) ld.style.display = "none";
+  }, undefined, (err) => {
+    console.warn("PLY load failed:", err);
+    const ld = document.getElementById("vload"); if (ld) ld.textContent = "Couldn't load 3D model.";
+  });
+
+  addEventListener("resize", () => { const [W,H]=size(); renderer.setSize(W,H,false); camera.aspect=W/H; camera.updateProjectionMatrix(); });
+  renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
 </script>
 </body>
 </html>
