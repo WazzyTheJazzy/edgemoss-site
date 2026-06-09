@@ -4,8 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Edgemoss — photoreal 3D for your product pages</title>
-<meta name="description" content="We turn your real products into photoreal, interactive 3D gaussian splats shoppers can spin on your product page. Free first model." />
-<!-- EDIT before deploying: search for SPLAT_CONFIG (brand, email, calendly, modelUrl). -->
+<meta name="description" content="We turn your real products into photoreal, interactive 3D models shoppers can spin — and view in their room — right on your product page. Free first model." />
+<!-- EDIT before deploying: search for SITE_CONFIG (brand, email, calendly). 3D asset = ./cattree.glb -->
 <style>
   :root{--bg:#070809;--panel:#0e1116;--line:rgba(255,255,255,.09);--txt:#eef1f4;--muted:#99a2ad;
     --accent:#5eead4;--accent2:#7c9bff;--glow:rgba(94,234,212,.3);--radius:16px;--maxw:1140px;}
@@ -33,12 +33,13 @@
   .hero h1 .g{background:linear-gradient(120deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
   .hero p{max-width:520px;margin-bottom:26px;color:#c4ccd6;font-size:clamp(15px,1.6vw,19px)}
   .cta-row{display:flex;gap:12px;flex-wrap:wrap}
-  .viewer-card{position:relative;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;aspect-ratio:1/1;background:radial-gradient(120% 100% at 50% 20%,#12161b,#0a0c0f);box-shadow:0 30px 80px rgba(0,0,0,.5);cursor:grab;touch-action:none}
+  .viewer-card{position:relative;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;aspect-ratio:1/1;background:radial-gradient(120% 100% at 50% 20%,#12161b,#0a0c0f);box-shadow:0 30px 80px rgba(0,0,0,.5);cursor:grab;touch-action:pan-y}
   .viewer-card:active{cursor:grabbing}
-  #view{position:absolute;inset:0;width:100%;height:100%}
+  model-viewer#view{position:absolute;inset:0;width:100%;height:100%;background:transparent;--poster-color:transparent;--progress-bar-color:var(--accent);--progress-mask:transparent}
   .vtag{position:absolute;top:12px;left:12px;z-index:3;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);background:rgba(13,15,18,.7);border:1px solid var(--line);padding:7px 12px;border-radius:999px;backdrop-filter:blur(8px)}
   .vtag .pulse{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pl 2s infinite}
   @keyframes pl{0%{box-shadow:0 0 0 0 var(--glow)}70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}
+  .ar-btn{position:absolute;bottom:12px;right:12px;z-index:4;display:none;align-items:center;gap:6px;font-size:12px;color:#04201b;background:var(--accent);border:0;padding:9px 14px;border-radius:999px;font-weight:650;cursor:pointer;box-shadow:0 6px 20px var(--glow)}
   .vload{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--muted);font-size:14px;z-index:2}
   .vspin{width:30px;height:30px;border:3px solid rgba(255,255,255,.12);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
@@ -79,7 +80,7 @@
   <div>
     <div class="eyebrow">3D for product pages</div>
     <h1>Let shoppers <span class="g">spin your product</span>, not just stare at a photo.</h1>
-    <p>We turn your real product into a photoreal, interactive 3D model — the actual item, with its true texture and finish — and put it on your product page. You don't need a 3D artist. The first one's on us.</p>
+    <p>We turn your real product into a photoreal, interactive 3D model — the actual item, with its true texture and finish — and put it on your product page. Shoppers can spin it, zoom in, even view it in their room. You don't need a 3D artist. The first one's on us.</p>
     <div class="cta-row">
       <a class="btn" id="cta-hero">Get a free 3D model →</a>
       <a class="btn ghost" href="#how">How it works</a>
@@ -87,9 +88,29 @@
     <p class="note">Drag the model → that's exactly what your shoppers will do.</p>
   </div>
   <div class="viewer-card" id="vcard">
-    <canvas id="view"></canvas>
-    <div class="vtag"><span class="pulse"></span> Live gaussian splat — drag to rotate</div>
-    <div class="vload" id="vload"><div class="vspin"></div> Loading 3D…</div>
+    <model-viewer id="view"
+      src="./cattree.glb"
+      alt="Interactive photoreal 3D model — drag to rotate, or view it in your room"
+      camera-controls
+      touch-action="pan-y"
+      auto-rotate
+      auto-rotate-delay="700"
+      rotation-per-second="18deg"
+      interaction-prompt="none"
+      exposure="1.25"
+      shadow-intensity="0.85"
+      shadow-softness="0.9"
+      environment-image="neutral"
+      camera-orbit="30deg 80deg auto"
+      max-camera-orbit="auto 95deg auto"
+      ar
+      ar-modes="webxr scene-viewer quick-look"
+      ar-scale="auto"
+      loading="eager">
+      <div class="vload" slot="poster"><div class="vspin"></div> Loading 3D…</div>
+      <button slot="ar-button" id="arbtn" class="ar-btn">⤢ View in your room</button>
+    </model-viewer>
+    <div class="vtag"><span class="pulse"></span> Live 3D model — drag to rotate</div>
     <div class="vhint" id="vhint">↻ drag any direction · scroll to zoom</div>
   </div>
 </div></div></header>
@@ -145,76 +166,31 @@
   Photoreal 3D for e-commerce · <span id="email-foot">aidentubergen@gmail.com</span>
 </div></footer>
 
+<!-- model-viewer (loads Draco + WebP decoders automatically) -->
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+
 <script>
-  window.SPLAT_CONFIG = {
+  window.SITE_CONFIG = {
     brand: "Edgemoss",
     email: "aidentubergen@gmail.com",
-    calendly: "",
-    modelUrl: "./motorcycle.sog",   // real gaussian splat
-    flip: false                      // set true if the model appears upside down
+    calendly: ""               // optional: paste a booking link to use instead of email
   };
   (function(){
-    var C = window.SPLAT_CONFIG;
+    var C = window.SITE_CONFIG;
     var mailto = "mailto:" + C.email + "?subject=" + encodeURIComponent("Free 3D model for my store") +
       "&body=" + encodeURIComponent("Hi - I'd like a free 3D model of my best-selling product.\n\nStore URL:\nProduct:\n");
     var href = C.calendly || mailto;
     ["cta-nav","cta-hero","cta-foot"].forEach(function(id){var e=document.getElementById(id);if(e)e.href=href;});
-    document.getElementById("brand-nav").textContent=C.brand;
-    document.getElementById("brand-foot").textContent=C.brand;
-    document.getElementById("email-foot").textContent=C.email;
+    document.getElementById("brand-nav").textContent = C.brand;
+    document.getElementById("brand-foot").textContent = C.brand;
+    document.getElementById("email-foot").textContent = C.email;
+    // Show the AR button only on devices that can actually do AR
+    var mv = document.getElementById("view"), ab = document.getElementById("arbtn"), hint = document.getElementById("vhint");
+    if (mv){
+      mv.addEventListener("load", function(){ if (ab) ab.style.display = mv.canActivateAR ? "inline-flex" : "none"; });
+      mv.addEventListener("camera-change", function(e){ if (e.detail.source === "user-interaction" && hint) hint.style.opacity = "0"; });
+    }
   })();
-</script>
-
-<script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-  "@sparkjsdev/spark": "https://sparkjs.dev/releases/spark/2.1.0/spark.module.js"
-} }
-</script>
-<script type="module">
-  import * as THREE from "three";
-  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-  import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
-
-  const card = document.getElementById("vcard");
-  const canvas = document.getElementById("view");
-  const cfg = window.SPLAT_CONFIG || {};
-  const R = 3.4; // model bounding radius (known from the capture)
-
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  function dims(){ return [card.clientWidth || 1, card.clientHeight || 1]; }
-  let [w, h] = dims();
-  renderer.setSize(w, h, false);
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(50, w / h, 0.01, 5000);
-  camera.position.set(R * 1.3, R * 0.45, R * 1.9);
-
-  scene.add(new SparkRenderer({ renderer }));
-
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.enablePan = false;
-  controls.rotateSpeed = 0.9;
-  controls.autoRotate = true;
-  controls.autoRotateSpeed = 0.8;
-  controls.minDistance = R * 0.6;
-  controls.maxDistance = R * 8;
-  controls.target.set(0, 0, 0);
-  controls.update();
-  controls.addEventListener("start", () => { controls.autoRotate = false; const hint = document.getElementById("vhint"); if (hint) hint.style.opacity = "0"; });
-
-  const splat = new SplatMesh({ url: cfg.modelUrl, onLoad: () => {
-    if (cfg.flip) splat.rotation.x = Math.PI; // optional upside-down correction
-    const ld = document.getElementById("vload"); if (ld) ld.style.display = "none";
-  }});
-  scene.add(splat);
-
-  addEventListener("resize", () => { const [W, H] = dims(); renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix(); });
-  renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
 </script>
 </body>
 </html>
