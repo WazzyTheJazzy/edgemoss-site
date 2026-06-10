@@ -122,13 +122,14 @@
 
       <h2>Local delete <span class="hint">deletes what's inside</span></h2>
       <div class="chips"><span class="chip del" id="delChip">Delete box</span><span class="chip" id="delMode">Drag: Move</span></div>
-      <div class="muted" style="font-size:10.5px;margin-top:6px">Enable, then <b>drag the box in the viewport</b> (or use sliders). Toggle “Drag: Move/Resize”. Everything inside is deleted; corner posts stay outside.</div>
+      <div class="muted" style="font-size:10.5px;margin-top:6px">Turn on <b>Delete box</b>, position it over the space you want gone — drag the arrows (toggle <b>Move/Resize</b>) or use the Pos/Size sliders — then click <b>Delete inside</b>. It's removed immediately; repeat for more, or Undo.</div>
       <div class="row d" style="margin-top:7px"><label>Pos X</label><input type="range" id="dpx" min="0" max="1" step="0.005" value="0.5"><span class="v" id="dpxv">50%</span></div>
       <div class="row d"><label>Pos Y</label><input type="range" id="dpy" min="0" max="1" step="0.005" value="0.5"><span class="v" id="dpyv">50%</span></div>
       <div class="row d"><label>Pos Z</label><input type="range" id="dpz" min="0" max="1" step="0.005" value="0.5"><span class="v" id="dpzv">50%</span></div>
       <div class="row d"><label>Size X</label><input type="range" id="dsx" min="0.02" max="1" step="0.005" value="0.3"><span class="v" id="dsxv">30%</span></div>
       <div class="row d"><label>Size Y</label><input type="range" id="dsy" min="0.02" max="1" step="0.005" value="0.25"><span class="v" id="dsyv">25%</span></div>
       <div class="row d"><label>Size Z</label><input type="range" id="dsz" min="0.02" max="1" step="0.005" value="0.3"><span class="v" id="dszv">30%</span></div>
+      <div class="grid2" style="margin-top:9px"><button class="btn sm" id="delDo" style="background:var(--del);color:#fff;box-shadow:none">🗑 Delete inside</button><button class="btn ghost sm" id="delUndo">↶ Undo</button></div>
 
       <h2>Seal underside <span class="hint">cap open holes</span></h2>
       <div class="chips"><span class="chip" id="sealChip">Seal holes</span></div>
@@ -186,7 +187,7 @@ showGizmo(false);
 
 const modelGroup = new THREE.Group(); scene.add(modelGroup);
 let grid = null, boxHelper = null, delBoxHelper = null;
-let originals = [], worldBox = new THREE.Box3(), totalTris = 0, inPreview = false, zipU8 = null;
+let originals = [], pristine = [], undoStack = [], worldBox = new THREE.Box3(), totalTris = 0, inPreview = false, zipU8 = null;
 const planes = Array.from({length:6}, () => new THREE.Plane());
 const view = { bg:false, wire:false, grid:true, box:true, float:false, del:false, seal:false };
 const cropIds = ["xmin","xmax","ymin","ymax","zmin","zmax"];
@@ -278,11 +279,29 @@ function computeFinal(){
   for(const o of originals){ let g=o.geo.clone(); g.applyMatrix4(modelGroup.matrixWorld);
     if(view.float){ const fr=keepLargeComponents(g, +$("minpct").value); g=fr.geo; comps=fr.components; }
     g = filterGeo(g, c=>cb.containsPoint(c)).geo;
-    if(view.del) g = filterGeo(g, c=>!db.containsPoint(c)).geo;
     tris+=g.attributes.position.count/3; result.push({geo:g, mat:o.mat});
     if(view.seal){ const cap=buildCaps(g); if(cap){ result.push({geo:cap.geo, mat:capMat}); capTris+=cap.tris; capLoops+=cap.loops; } } }
   return {result, tris:Math.round(tris), comps, capTris, capLoops};
 }
+function countTris(arr){ return arr.reduce((s,o)=> s + (o.geo.index?o.geo.index.count:o.geo.attributes.position.count)/3, 0); }
+// destructive: permanently remove everything inside the delete box (with undo)
+function commitDelete(){
+  if(!view.del){ view.del=true; $("delChip").classList.add("on"); updateDelBox(); }
+  if(!originals.length) return;
+  if(inPreview){ buildEdit(); $("preview").textContent="👁 Preview result"; }
+  modelGroup.updateMatrixWorld(true);
+  const db=delBox(), mw=modelGroup.matrixWorld, tmp=new THREE.Vector3();
+  undoStack.push(originals.map(o=>({geo:o.geo.clone(), mat:o.mat}))); if(undoStack.length>6) undoStack.shift();
+  const before=countTris(originals);
+  originals = originals.map(o=>({ geo: filterGeo(o.geo, c=>{ tmp.copy(c).applyMatrix4(mw); return !db.containsPoint(tmp); }).geo, mat:o.mat }));
+  const after=countTris(originals); totalTris=Math.round(after);
+  buildEdit(); updateDelBox();
+  setStats("🗑 removed <b style='color:#ff5e6e'>"+Math.round(before-after).toLocaleString()+"</b> tris inside the box · Undo to restore");
+}
+function undoDelete(){ if(!undoStack.length){ setStats("nothing to undo"); return; }
+  originals = undoStack.pop(); totalTris=Math.round(countTris(originals));
+  if(inPreview){ buildEdit(); $("preview").textContent="👁 Preview result"; } else buildEdit();
+  updateDelBox(); setStats("↶ undo — geometry restored"); }
 
 function buildEdit(){
   inPreview=false; while(modelGroup.children.length) modelGroup.remove(modelGroup.children[0]);
@@ -306,6 +325,7 @@ function setStats(extra){ const dim=worldBox.getSize(new THREE.Vector3());
 // ---------- loading (glb / ply / obj / zip) ----------
 function finishLoad(name){
   totalTris = originals.reduce((s,o)=> s + (o.geo.index?o.geo.index.count:o.geo.attributes.position.count)/3, 0);
+  pristine = originals.map(o=>({geo:o.geo.clone(), mat:o.mat})); undoStack = [];
   ["rx","ry","rz"].forEach(id=>$(id).value=0); modelGroup.position.set(0,0,0);
   buildEdit(); frame(); setStats();
   $("drop").style.display="none"; $("views").style.display="flex"; $("filename").textContent=name;
@@ -403,7 +423,13 @@ $("floatChip").onclick=()=>{ view.float=!view.float; $("floatChip").classList.to
 $("delChip").onclick=()=>{ view.del=!view.del; $("delChip").classList.toggle("on", view.del); if(inPreview) doPreview(); else updateDelBox(); };
 $("sealChip").onclick=()=>{ view.seal=!view.seal; $("sealChip").classList.toggle("on", view.seal); doPreview(); };
 $("delMode").onclick=()=>{ const m=gizmo.getMode()==="translate"?"scale":"translate"; gizmo.setMode(m); $("delMode").textContent=m==="translate"?"Drag: Move":"Drag: Resize"; };
-addEventListener("keydown", e=>{ if(!view.del) return; if(e.key==="g"){ gizmo.setMode("translate"); $("delMode").textContent="Drag: Move"; } if(e.key==="r"){ gizmo.setMode("scale"); $("delMode").textContent="Drag: Resize"; } });
+$("delDo").onclick=()=>commitDelete();
+$("delUndo").onclick=()=>undoDelete();
+addEventListener("keydown", e=>{ if((e.key==="z"||e.key==="Z")&&(e.metaKey||e.ctrlKey)){ e.preventDefault(); undoDelete(); return; }
+  if(!view.del) return;
+  if(e.key==="g"){ gizmo.setMode("translate"); $("delMode").textContent="Drag: Move"; }
+  if(e.key==="r"){ gizmo.setMode("scale"); $("delMode").textContent="Drag: Resize"; }
+  if(e.key==="Delete"||e.key==="Backspace"){ e.preventDefault(); commitDelete(); } });
 $("viewchips").addEventListener("click", e=>{ const ch=e.target.closest(".chip"); if(!ch) return; const t=ch.dataset.t; view[t]=!view[t]; ch.classList.toggle("on", view[t]);
   if(t==="bg"){ scene.background = view.bg ? new THREE.Color(0xe9eaee) : null; stage.style.background = view.bg ? "#e9eaee" : "radial-gradient(130% 110% at 50% 18%,#1a1f24,#0a0c0e)"; }
   if(t==="wire") setMatsClip(!inPreview);
@@ -422,6 +448,7 @@ function doPreview(){ $("stats").innerHTML="working…"; setTimeout(()=>{ const 
   $("preview").textContent="↩ Back to editing"; }, 30); }
 $("preview").onclick=()=>{ if(inPreview){ buildEdit(); $("preview").textContent="👁 Preview result"; setStats(); } else doPreview(); };
 $("resetAll").onclick=()=>{ ["rx","ry","rz"].forEach(id=>{$(id).value=0;$(id+"v").textContent="0°";}); modelGroup.position.set(0,0,0);
+  originals = pristine.map(o=>({geo:o.geo.clone(), mat:o.mat})); undoStack=[]; totalTris=Math.round(countTris(originals));
   $("resetCrop").onclick(); view.float=false; $("floatChip").classList.remove("on"); view.del=false; $("delChip").classList.remove("on"); view.seal=false; $("sealChip").classList.remove("on");
   $("preview").textContent="👁 Preview result"; buildEdit(); frame(); setStats(); };
 $("export").onclick=()=>{ $("stats").innerHTML="exporting…"; setTimeout(()=>{ const {result,tris}=computeFinal();
